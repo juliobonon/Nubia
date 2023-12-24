@@ -1,0 +1,6 @@
+aiohttp==3.8.6
+loguru==0.7.2
+nicegui==1.4.1
+Pillow==10.0.1
+pytesseract==0.3.10
+SQLAlchemy==2.0.22
