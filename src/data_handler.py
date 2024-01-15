@@ -1,5 +1,8 @@
 from asyncio import wait_for
+from asyncio.exceptions import TimeoutError
+
 from loguru import logger as log
+
 from src.adapters.repository import database
 
 
@@ -23,10 +26,13 @@ class DataHandler:
                 continue
 
             item.state = "DATABASE"
-            self.database.add(item)
-            log.info(f"Adding {item.name} to database")
-
-        self.database.commit()
+            try:
+                log.info(f"Adding {item.name} to database")
+                self.database.add(item)
+                self.database.commit()
+            except Exception as e:
+                self.database.rollback()
+                log.error(f"Error adding {item.name} to database {str(e)}")
 
     async def run(self):
         try:

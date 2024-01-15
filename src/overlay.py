@@ -1,7 +1,8 @@
-from PIL import ImageGrab, Image
-from loguru import logger as log
-import time
 import asyncio
+import time
+
+from loguru import logger as log
+from PIL import Image, ImageGrab
 
 
 class Overlay:

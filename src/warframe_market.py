@@ -1,7 +1,6 @@
 from aiohttp import ClientSession
 from loguru import logger as log
 
-
 WARFRAME_MARKET_ITEMS_URL = "https://api.warframe.market/v1/items"
 WARFRAME_MARKET_ITEM_URL = "https://api.warframe.market/v1/items/{}"
 WARFRAME_MARKET_ORDERS_URL = "https://api.warframe.market/v1/items/{}/orders"

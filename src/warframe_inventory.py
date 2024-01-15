@@ -1,6 +1,7 @@
 from loguru import logger as log
-from src.models.warframe_item import WarframeItem
+
 from src.adapters.repository import database
+from src.models.warframe_item import WarframeItem
 
 
 class WarframeUserInventory:
@@ -25,11 +26,11 @@ class WarframeUserInventory:
     def batch_items(self):
         return self._batch_items
 
-    def inventory_plat_price(self) -> float:
-        return sum(item.platinum_price for item in self.items)
+    def inventory_plat_price(self) -> int:
+        return sum(item.platinum_price for item in self.items if item.platinum_price)
 
-    def inventory_ducat_price(self) -> float:
-        return sum(item.ducat_price for item in self.items)
+    def inventory_ducat_price(self) -> int:
+        return sum(item.ducat_price for item in self.items if item.ducat_price)
 
     def add_to_batch(self, item: WarframeItem):
         self._batch_items.append(item)

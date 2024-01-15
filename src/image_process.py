@@ -1,25 +1,45 @@
-import pytesseract
-from loguru import logger as log
-from src.warframe_market import WarframeMarket
+import asyncio
 from copy import copy
 
+import pytesseract
+from loguru import logger as log
+
+from src.settings import TESSERACT_CMD
 from src.warframe_inventory import WarframeItem, WarframeUserInventory
+from src.warframe_market import WarframeMarket
+
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 
-# Set the path to the Tesseract executable (modify this according to your system)
-pytesseract.pytesseract.tesseract_cmd = r"/opt/homebrew/bin/tesseract"
+async def set_warframe_item_properties(
+    item: dict,
+    warframe_tradable_items: list,
+    inventory: WarframeUserInventory,
+    wf_market: WarframeMarket,
+):
+    item_info = warframe_tradable_items[item]
+    wf_item = WarframeItem()
+    wf_item.from_dict(item_info)
+
+    if not inventory.item_in_list(wf_item):
+        log.debug(f"{item} not in list")
+        wf_item.set_platinum_price(await wf_market.get_price(item_info["url_name"]))
+        wf_item.set_ducat_price(await wf_market.ducat_price(item_info["url_name"]))
+        wf_item.set_item_image_url(
+            await wf_market.item_image_url(item_info["url_name"])
+        )
+        inventory.add_to_batch(wf_item)
 
 
 def item_in_list(
     warframe_market_items: dict,
     item_name: str,
 ):
-    if not item_name.strip():
+    if not (clear_item := item_name.strip()):
         return False
 
     return any(
-        item_name.strip() in item["primary_name"]
-        for item in warframe_market_items.values()
+        clear_item in item["primary_name"] for item in warframe_market_items.values()
     )
 
 
@@ -83,6 +103,9 @@ def pre_process_image(img):
 
 
 class DataProcessorProcess:
+    inventory = WarframeUserInventory()
+    wf_market = WarframeMarket()
+
     def __init__(self, image_queue, data_queue):
         self.image_queue = image_queue
         self.data_queue = data_queue
@@ -114,28 +137,20 @@ class DataProcessorProcess:
             filter(lambda item: item in warframe_tradable_items, word_groups)
         )
 
-        # TODO: make this concurrent
-        inventory = WarframeUserInventory()
-        wf_market = WarframeMarket()
-        for item in filtered_items:
-            item_info = warframe_tradable_items[item]
-            wf_item = WarframeItem()
-            wf_item.from_dict(item_info)
+        # TODO: encapsulate into a method
+        await asyncio.gather(
+            *[
+                set_warframe_item_properties(
+                    wf_item,
+                    warframe_tradable_items,
+                    self.inventory,
+                    self.wf_market,
+                )
+                for wf_item in filtered_items
+            ]
+        )
 
-            if not inventory.item_in_list(wf_item):
-                log.debug(f"{item} not in list")
-                wf_item.set_platinum_price(
-                    await wf_market.get_price(item_info["url_name"])
-                )
-                wf_item.set_ducat_price(
-                    await wf_market.ducat_price(item_info["url_name"])
-                )
-                wf_item.set_item_image_url(
-                    await wf_market.item_image_url(item_info["url_name"])
-                )
-                inventory.add_to_batch(wf_item)
-
-        return inventory
+        return self.inventory
 
     async def run(self):
         """

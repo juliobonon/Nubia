@@ -1,19 +1,21 @@
 import abc
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src import config
-from src import models
+from src.models import Base
+from src.models.warframe_item import WarframeItem
 
-DEFAULT_SESSION_FACTORY = sessionmaker(
-    bind=create_engine(
-        config.get_postgres_uri(),
-        isolation_level="READ UNCOMMITTED",
-    )
-)
 
-database = DEFAULT_SESSION_FACTORY()
-with database.bind.engine.connect() as con:
-    models.Base.metadata.create_all(bind=con)
+def create_db_session():
+    engine = create_engine(config.get_postgres_uri())
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(bind=engine)
+    return session()
+
+
+database = create_db_session()
 
 
 class AbstractRepository(abc.ABC):

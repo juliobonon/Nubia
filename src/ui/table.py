@@ -1,10 +1,16 @@
 from nicegui.events import GenericEventArguments
 
+from src.models.warframe_item import WarframeItem
+from src.ui.settings import WARFRAME_ITEMS_COLUMNS
+
+
 def warframe_item_dialog(ui, msg: GenericEventArguments):
     with ui.dialog() as dialog:
         dialog.open()
         with ui.card():
-            ui.label(f"Want to create a auction for {msg.args['key']}?").classes("text-bold")
+            ui.label(f"Want to create a auction for {msg.args['key']}?").classes(
+                "text-bold"
+            )
             ui.input("Price")
             ui.input("Quantity")
             with ui.row():
@@ -12,30 +18,11 @@ def warframe_item_dialog(ui, msg: GenericEventArguments):
                 ui.button("Close", on_click=dialog.close)
 
 
-def build_warframe_items_table(ui, wf_items: list):
-    columns = [
-        {"name": "name", "label": "Name", "field": "name"},
-        {
-            "name": "platinum_price",
-            "label": "Platinum Price",
-            "field": "platinum_price",
-            "sortable": True,
-        },
-        {
-            "name": "ducat_price",
-            "label": "Ducat Price",
-            "field": "ducat_price",
-            "sortable": True,
-        },
-        {
-            "name": "state",
-            "label": "Item State",
-            "field": "state",
-            "sortable": True,
-        },
-    ]
+def build_warframe_items_table(ui, wf_items: list[WarframeItem]):
     rows = [wf_item.to_dict() for wf_item in wf_items]
-    table = ui.table(columns=columns, rows=rows, row_key="name").style("width: 100%")
+    table = ui.table(columns=WARFRAME_ITEMS_COLUMNS, rows=rows, row_key="name").style(
+        "width: 100%"
+    )
 
     table.add_slot(
         "header",

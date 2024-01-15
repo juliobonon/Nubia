@@ -1,8 +1,9 @@
 import asyncio
-from src.overlay import Overlay
-from src.image_process import DataProcessorProcess
+from typing import Awaitable, Callable, List
+
 from src.data_handler import DataHandler
-from typing import List, Callable, Awaitable
+from src.image_process import DataProcessorProcess
+from src.overlay import Overlay
 
 
 class Cephalon:

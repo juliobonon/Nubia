@@ -1,16 +1,19 @@
 ## Commands to ease development
 
+run:
+	python -m src.cephalon && python -m src.ui.ui
+
 cephalon: # Run main cephalon module
 	python -m src.cephalon
 
 webui: # Run nicegui web UI
 	python -m src.ui.ui
 
-mainui: # Run tkinter main UI
-	python -m src.main_ui
-
-build: # Install python dependencies 🐍
+install: # Install python dependencies 🐍
 	pip install -r requirements/requirements.txt
+
+format:
+	black src/; isort src/
 
 .PHONY: help
 help: # Show help for each of the Makefile recipes.

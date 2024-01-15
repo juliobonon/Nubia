@@ -1,6 +1,7 @@
-from sqlalchemy import Integer, Column, String
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Mapped
-from . import Base
+
+from src.models import Base
 
 
 class WarframeItem(Base):
@@ -8,7 +9,7 @@ class WarframeItem(Base):
 
     item_id: Mapped[int] = Column(Integer, primary_key=True)
     text: Mapped[str] = Column(String(100))
-    name: Mapped[str] = Column(String(100))
+    name: Mapped[str] = Column(String(100), unique=True)
     left: Mapped[int] = Column(Integer)
     top: Mapped[int] = Column(Integer)
     confidence: Mapped[int] = Column(Integer)
