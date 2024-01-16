@@ -166,11 +166,10 @@ class DataProcessorProcess:
         ocr_dict_data = pytesseract.image_to_data(
             screenshot, lang="eng", output_type=pytesseract.Output.DICT
         )
-        wf_inventory = await self.process_image_data(ocr_dict_data)
-        log.debug(wf_inventory)
+        self.inventory = await self.process_image_data(ocr_dict_data)
 
-        if any(wf_inventory.batch_items):
+        if any(self.inventory.batch_items):
             log.info("There are some items to be added on database")
-            items = copy(wf_inventory.batch_items)
-            wf_inventory.batch_items.clear()
+            items = copy(self.inventory.batch_items)
+            self.inventory.batch_items.clear()
             await self.data_queue.put(items)

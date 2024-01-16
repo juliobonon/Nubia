@@ -11,9 +11,18 @@ webui: # Run nicegui web UI
 
 install: # Install python dependencies 🐍
 	pip install -r requirements/requirements.txt
+	pip install -r requirements/test.txt
 
-format:
+format: # Format code using black/isort
 	black src/; isort src/
+
+## Testing
+
+test: # Run pytest
+	python -m pytest --no-header
+
+profile-test: # Run pyinstrument against tests
+	pyinstrument -m pytest -v
 
 .PHONY: help
 help: # Show help for each of the Makefile recipes.
