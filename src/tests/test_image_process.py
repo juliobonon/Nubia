@@ -13,6 +13,9 @@ class MockQueue:
     async def get(self):
         return self.image
 
+    async def put(self, arg):
+        pass
+
 
 @pytest.mark.asyncio
 async def test_image_process():
@@ -28,4 +31,4 @@ async def test_image_process():
 
     await processor.run()
     assert processor.inventory.items
-    assert len(processor.inventory.items) > 5
+    assert len(processor.inventory.items) > 10

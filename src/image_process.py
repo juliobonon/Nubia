@@ -1,14 +1,13 @@
 import asyncio
+import io
 from copy import copy
 
-import pytesseract
+import easyocr
 from loguru import logger as log
+from PIL.Image import Image
 
-from src.settings import TESSERACT_CMD
 from src.warframe_inventory import WarframeItem, WarframeUserInventory
 from src.warframe_market import WarframeMarket
-
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 
 async def set_warframe_item_properties(
@@ -43,101 +42,44 @@ def item_in_list(
     )
 
 
-def join_words_dictionaries(word_boxes: dict) -> list:
-    return [
-        {
-            "text": word_boxes["text"][indx],
-            "left": word_boxes["left"][indx],
-            "top": word_boxes["top"][indx],
-            "width": word_boxes["width"][indx],
-            "height": word_boxes["height"][indx],
-            "confidence": word_boxes["conf"][indx],
-        }
-        for indx in range(len(word_boxes["text"]))
-    ]
-
-
-def retrieve_close_words(
-    word: dict,
-    word_list: list,
-    horizontal_threshold: int = 100,
-    vertical_threshold: int = 60,
-):
-    return [
-        word_in_list
-        for word_in_list in word_list
-        if abs(word["top"] - word_in_list["top"]) <= vertical_threshold
-        and abs(word["left"] - word_in_list["left"]) <= horizontal_threshold
-    ]
-
-
-def build_item_full_name(
-    word: dict,
-    words_list: list,
-    top_threshold: int = 10,
-):
-    # sort by top (items are organized in squares)
-
-    final_desc = []
-    for word_a in words_list:
-        if (
-            abs(word_a["top"] - word["top"]) <= top_threshold
-            and word_a["text"] not in final_desc
-        ):
-            final_desc.append(word_a["text"])
-
-    for word_a in words_list:
-        if (
-            abs(word_a["top"] - word["top"]) >= top_threshold
-            and word_a["text"] not in final_desc
-        ):
-            final_desc.append(word_a["text"])
-
-    return " ".join(item for item in final_desc)
-
-
-def pre_process_image(img):
-    grayscale_img = img.convert("L")
-
-    return grayscale_img
-
-
 class DataProcessorProcess:
     inventory = WarframeUserInventory()
     wf_market = WarframeMarket()
+    ocr_reader = easyocr.Reader(["en"])
 
     def __init__(self, image_queue, data_queue):
         self.image_queue = image_queue
         self.data_queue = data_queue
 
-    async def process_image_data(self, word_boxes: dict):
-        word_groups = []  # List to store groups of words
-        words_info = join_words_dictionaries(word_boxes)
+    def image_to_bytes(self, image: Image) -> bytes:
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format="PNG")
+        return img_byte_arr.getvalue()
 
-        # sort words by left property
-        sorted_words_info = sorted(words_info, key=lambda x: x["left"], reverse=False)
+    def read_ocr_items(self, image: bytes) -> list[tuple[list, str]]:
+        """
+        Items in the Warframe Inventory are organized in squares
+        so we need to join close words to embrace multiple line items.
+        """
+        return self.ocr_reader.readtext(
+            self.image_to_bytes(image),
+            paragraph=True,
+            y_ths=1.0,
+        )
 
-        warframe_market = WarframeMarket()
-        warframe_tradable_items = await warframe_market.items
-
-        for word in sorted_words_info:
-            if not item_in_list(warframe_tradable_items, word["text"]):
-                continue
-
-            close_words = retrieve_close_words(word, sorted_words_info)
-
-            # sort by left
-            all_words = sorted(
-                [word] + list(close_words), key=lambda x: x["left"], reverse=False
-            )
-
-            word_groups.append(build_item_full_name(word, all_words))
+    async def process_image_data(self, image: Image):
+        warframe_tradable_items = await self.wf_market.items
+        ocr_items = self.read_ocr_items(image)
 
         filtered_items = list(
-            filter(lambda item: item in warframe_tradable_items, word_groups)
+            filter(
+                lambda item: item in warframe_tradable_items,
+                map(lambda ocr_obj: ocr_obj[1], ocr_items),
+            ),
         )
 
         # TODO: encapsulate into a method
+        # TODO: implement semaphore to avoid rate limiting
         await asyncio.gather(
             *[
                 set_warframe_item_properties(
@@ -158,15 +100,10 @@ class DataProcessorProcess:
         Copies the items that are in the batch list and them clears it in order to avoid adding similar items.
         """
         log.info("Waiting for image data...")
-        img_bytes = await self.image_queue.get()
+        img_bytes: Image = await self.image_queue.get()
 
-        screenshot = pre_process_image(img_bytes)
         log.info("Processing screenshot image")
-
-        ocr_dict_data = pytesseract.image_to_data(
-            screenshot, lang="eng", output_type=pytesseract.Output.DICT
-        )
-        self.inventory = await self.process_image_data(ocr_dict_data)
+        self.inventory = await self.process_image_data(img_bytes)
 
         if any(self.inventory.batch_items):
             log.info("There are some items to be added on database")

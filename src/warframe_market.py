@@ -46,12 +46,15 @@ class WarframeMarket:
         log.info(f"Getting ducat value for item {item_name}")
 
         async with ClientSession() as ss:
-            res = await ss.get(
-                url=WARFRAME_MARKET_ITEM_URL.format(item_name),
-                headers={"accept": "application/json"},
-            )
-            res_json = await res.json()
             try:
+                res = await ss.get(
+                    url=WARFRAME_MARKET_ITEM_URL.format(item_name),
+                    headers={"accept": "application/json"},
+                )
+                if res.status == 429:
+                    return {}
+
+                res_json = await res.json()
                 return res_json["payload"]["item"]["items_in_set"][0]
             except Exception as e:
                 log.error(e)
@@ -76,12 +79,16 @@ class WarframeMarket:
         log.info(f"Getting price for item {item_name}")
 
         async with ClientSession() as ss:
-            res = await ss.get(
-                url=WARFRAME_MARKET_ORDERS_URL.format(item_name),
-                headers={"accept": "application/json"},
-            )
-            res_json = await res.json()
             try:
+                res = await ss.get(
+                    url=WARFRAME_MARKET_ORDERS_URL.format(item_name),
+                    headers={"accept": "application/json"},
+                )
+                if res.status == 429:
+                    # TODO: fix rate limit by applying Semaphore
+                    return 0
+
+                res_json = await res.json()
                 return res_json["payload"]["orders"][0]["platinum"]
             except Exception as e:
                 log.error(e)
